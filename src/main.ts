@@ -1,12 +1,23 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import * as helmet from 'helmet';
+
 import { AppModule } from './app.module';
 import { RedisIoAdapter } from './adapters/redis.adapter';
-import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    cors: {
+      origin: '*',
+      optionsSuccessStatus: 200,
+    },
+  });
+
+  app.use(helmet());
   app.useWebSocketAdapter(new RedisIoAdapter(app));
-  await app.listen(process.env.SERVER_PORT);
+
+  const port = process.env.SERVER_PORT || 8080;
+  await app.listen(port, () => console.log(`listening on ${port}`));
 }
 
 bootstrap();

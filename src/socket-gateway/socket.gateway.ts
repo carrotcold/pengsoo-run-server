@@ -6,16 +6,26 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
   MessageBody,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { Socket, Server } from 'socket.io';
 
-@WebSocketGateway(81)
-export class GameGateway
+@WebSocketGateway({ namespace: 'gamepad' })
+export class SocketGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
-  private logger: Logger = new Logger('GameGateway');
+  private logger: Logger = new Logger('SocketGateway');
+
+  @SubscribeMessage('join-room')
+  joinRoom(
+    @MessageBody() data: string,
+    @ConnectedSocket() client: Socket,
+  ): void {
+    this.logger.log(data);
+    // client.join(data.roomId);
+  }
 
   @SubscribeMessage('chat')
   public handleEvent(@MessageBody() data: string): string {

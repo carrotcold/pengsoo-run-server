@@ -1,7 +1,15 @@
 import { Module } from '@nestjs/common';
-import { GameModule } from './game-events/game.module';
+import { ConfigModule } from '@nestjs/config';
+import { SocketModule } from './socket-gateway/socket.module';
 
 @Module({
-  imports: [GameModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    SocketModule,
+  ],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
