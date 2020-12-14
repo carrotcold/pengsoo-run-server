@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { SocketModule } from './socket-gateway/socket.module';
+
+import { RedisCacheModule } from './cache/redisCache.module';
+import { GameModule } from './game/game.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    SocketModule,
+    ConfigModule.forRoot({ isGlobal: true }),
+    RedisCacheModule,
+    GameModule,
   ],
   controllers: [],
   providers: [],
