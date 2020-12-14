@@ -9,31 +9,25 @@ export class RedisCacheService {
     this.logger.log('RedisCacheService INIT');
   }
 
-  async get(key: string): Promise<string> {
-    console.log('REDIS get', key);
-    return await this.cacheManager.get(key);
+  async get(key: string): Promise<any> {
+    const value = await this.cacheManager.get(key);
+    return JSON.parse(value);
   }
 
-  async getMany(keys: string[]): Promise<string[]> {
-    console.log('REDIS getMany', keys);
-    console.log(await this.cacheManager.mget(keys));
-    const res = await this.cacheManager.mget(keys);
-    console.log('✅   getMany   res', res);
-    return await this.cacheManager.mget(keys);
+  async getMany(keys: string[]): Promise<any[]> {
+    const value = await this.cacheManager.mget(keys);
+    return JSON.parse(value);
   }
 
-  async set(key: string, value: string): Promise<string> {
-    console.log('REDIS set', key, value);
-    return await this.cacheManager.set(key, value);
+  async set(key: string, value: any): Promise<string> {
+    return await this.cacheManager.set(key, JSON.stringify(value));
   }
 
   async delete(key: string): Promise<string> {
-    console.log('REDIS delete', key);
     return await this.cacheManager.del(key);
   }
 
   async keys(): Promise<string[]> {
-    console.log('REDIS keys');
     return await this.cacheManager.keys();
   }
 }
