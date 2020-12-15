@@ -10,6 +10,7 @@ import { Logger } from '@nestjs/common';
 import { Socket, Server } from 'socket.io';
 
 import { GameService } from './game.service';
+import { Game, GameMode } from '../types/game.type';
 
 @WebSocketGateway()
 export class GameGateway
@@ -21,18 +22,25 @@ export class GameGateway
 
   constructor(private readonly gameService: GameService) {}
 
-  // @SubscribeMessage('create-game')
-  // handleCreateGame(client: Socket, data: number): string {
-  //   this.logger.log(`${gameId} is created`);
-  //   client.join(gameId);
-  //   return gameId;
-  // }
+  @SubscribeMessage('create-game')
+  async handleCreateGame(client: Socket, mode: GameMode): Promise<Game> {
+    const game = await this.gameService.create(client.id, mode);
+    client.join(game.id);
+    return game;
+  }
 
-  @SubscribeMessage('chat')
-  public handleEvent(data: string): string {
-    this.logger.log(data);
-    console.log(data);
-    return data;
+  @SubscribeMessage('join-game')
+  async handleJoinGame(client: Socket, gameId: string): Promise<Game> {
+    const game = await this.gameService.join(client.id, gameId);
+    client.join(game.id);
+    return game;
+  }
+
+  @SubscribeMessage('destroy-game')
+  async handleDesroyGame(client: Socket, mode: GameMode): Promise<Game> {
+    const game = await this.gameService.create(client.id, mode);
+    client.join(game.id);
+    return game;
   }
 
   public async afterInit(): Promise<void> {

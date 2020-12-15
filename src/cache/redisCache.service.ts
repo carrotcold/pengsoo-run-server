@@ -11,20 +11,28 @@ export class RedisCacheService {
 
   async get(key: string): Promise<any> {
     const value = await this.cacheManager.get(key);
+    this.logger.debug(`[GET] ${key}=> ${value}`);
     return JSON.parse(value);
   }
 
   async getMany(keys: string[]): Promise<any[]> {
+    if (!keys.length) return [];
+
     const value = await this.cacheManager.mget(keys);
+    this.logger.debug(`[GET MANY] ${keys}=> ${value}`);
     return JSON.parse(value);
   }
 
-  async set(key: string, value: any): Promise<string> {
-    return await this.cacheManager.set(key, JSON.stringify(value));
+  async set(key: string, value: any): Promise<any> {
+    await this.cacheManager.set(key, JSON.stringify(value));
+    this.logger.debug(`[SET] ${key}: ${JSON.stringify(value)}`);
+    return value;
   }
 
   async delete(key: string): Promise<string> {
-    return await this.cacheManager.del(key);
+    const deletedValue = await this.cacheManager.del(key);
+    this.logger.debug(`[DELETE] ${key}: ${deletedValue}`);
+    return deletedValue;
   }
 
   async keys(): Promise<string[]> {

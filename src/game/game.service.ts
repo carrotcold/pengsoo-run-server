@@ -1,38 +1,44 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+import { Injectable } from '@nestjs/common';
 
 import { RedisCacheService } from '../cache/redisCache.service';
-import { Game } from '../types/game.type';
+import { Game, GameMode, GameRole } from '../types/game.type';
 
 @Injectable()
 export class GameService {
-  private readonly logger: Logger = new Logger('GameService');
+  constructor(private readonly redisCacheService: RedisCacheService) {}
 
-  constructor(private readonly redisCacheService: RedisCacheService) {
-    this.logger.log('GameService INIT');
+  async create(id: string, mode: GameMode): Promise<Game> {
+    return await this.redisCacheService.set(id, {
+      id,
+      mode,
+      playerList: [],
+      remainingRole: this.assignRole(mode),
+    });
   }
 
-  async getAll(): Promise<string[]> {
+  async join(playerId: string, gameId: string): Promise<Game> {
+    const game = (await this.redisCacheService.get(gameId)) as Game;
+    // if (!game) return game;
+    // const newPlayer: Player = {
+    //   id: playerId,
+    //   role: game.remainingRole.pop(),
+    // };
+    return game;
+  }
+
+  async getAll(): Promise<any[]> {
     const keys = await this.redisCacheService.keys();
     return await this.redisCacheService.getMany(keys);
   }
 
-  async handleTest(): Promise<string[]> {
-    this.logger.debug('Caching test to Redis');
-    return await this.getAll();
-  }
-
-  async createNewGame(playerCount: number): Promise<Game> {
-    this.logger.debug('Create New Game');
-    const newGameId = uuidv4();
-    const newGame: Game = {
-      id: newGameId,
-      playerCount,
-      isPlaying: false,
-      playerList: [],
-    };
-
-    await this.redisCacheService.set(newGameId, JSON.stringify(newGame));
-    return newGame;
+  private assignRole(mode: GameMode): GameRole[] {
+    switch (mode) {
+      case GameMode.P1:
+        return [GameRole.ALL];
+      case GameMode.P2:
+        return [GameRole.J, GameRole.LR];
+      case GameMode.P3:
+        return [GameRole.J, GameRole.R, GameRole.L];
+    }
   }
 }
