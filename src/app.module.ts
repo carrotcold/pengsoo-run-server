@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
-import { RedisCacheModule } from './cache/redisCache.module';
+import { RedisCacheModule } from './redisCache/redisCache.module';
 import { GameModule } from './game/game.module';
 
 @Module({

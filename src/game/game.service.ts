@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { RedisCacheService } from '../cache/redisCache.service';
+import { RedisCacheService } from '../redisCache/redisCache.service';
 import { Game, GameMode, GameRole } from '../types/game.type';
 
 @Injectable()
@@ -8,12 +8,16 @@ export class GameService {
   constructor(private readonly redisCacheService: RedisCacheService) {}
 
   async create(id: string, mode: GameMode): Promise<Game> {
-    return await this.redisCacheService.set(id, {
+    const newGame: Game = {
       id,
       mode,
+      isPlaying: false,
       playerList: [],
       remainingRole: this.assignRole(mode),
-    });
+    };
+
+    await this.redisCacheService.set(id, newGame);
+    return newGame;
   }
 
   async join(playerId: string, gameId: string): Promise<Game> {

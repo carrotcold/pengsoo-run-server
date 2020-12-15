@@ -20,6 +20,7 @@ export interface Player {
 export interface Game {
   id: string | null;
   mode: GameMode | null;
+  isPlaying: boolean;
   playerList: Player[];
   remainingRole: GameRole[];
 }
