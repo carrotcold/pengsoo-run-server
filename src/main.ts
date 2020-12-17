@@ -4,13 +4,9 @@ import * as helmet from 'helmet';
 
 import { AppModule } from './app.module';
 import { RedisIoAdapter } from './adapters/redis.adapter';
-import { develop, prod } from './config';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(
-    AppModule,
-    process.env.NODE_ENV === 'development' ? develop : prod,
-  );
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.use(helmet());
   app.useWebSocketAdapter(new RedisIoAdapter(app));
