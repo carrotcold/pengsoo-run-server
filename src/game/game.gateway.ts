@@ -2,7 +2,6 @@ import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
-  OnGatewayInit,
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
@@ -13,8 +12,7 @@ import { GameService } from './game.service';
 import { Game, GameMode } from '../types/game.type';
 
 @WebSocketGateway()
-export class GameGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger: Logger = new Logger('GameGateway');
 
   @WebSocketServer()
@@ -24,49 +22,68 @@ export class GameGateway
 
   @SubscribeMessage('createGame')
   async handleCreateGame(client: Socket, mode: GameMode): Promise<void> {
-    const game = await this.gameService.create(client.id, mode);
-    client.join(game.id);
-    client.emit('createGame', game);
+    const { error, payload } = await this.gameService.create(client.id, mode);
+
+    if (error) {
+      client.emit('error', error);
+      return;
+    }
+
+    client.join(payload.id);
+    client.emit('createGame', payload);
   }
 
   @SubscribeMessage('joinGame')
   async handleJoinGame(client: Socket, gameId: string): Promise<void> {
-    const playerList = await this.gameService.join(client.id, gameId);
+    const { error, payload } = await this.gameService.join(client.id, gameId);
 
-    if (!playerList) {
-      client.emit('joinGame', 'Game is Full');
+    if (error) {
+      client.emit('error', error);
       return;
     }
 
-    const newPlayer = playerList.find(player => player.id === client.id);
+    const newPlayer = payload.find(player => player.id === client.id);
 
     client.emit('joinGame', newPlayer);
-    this.server.to(gameId).emit('updatePlayerList', playerList);
+    this.server.to(gameId).emit('updatePlayerList', payload);
+  }
+
+  @SubscribeMessage('leaveGame')
+  async handleLeaveGame(client: Socket, gameId: string): Promise<void> {
+    const { error, payload } = await this.gameService.leave(client.id, gameId);
+
+    if (error) {
+      client.emit('error', error);
+      return;
+    }
+
+    client.leave(gameId);
+    client.emit('leaveGame');
+    this.server.to(gameId).emit('updatePlayerList', payload);
   }
 
   @SubscribeMessage('destroyGame')
-  async handleDestroyGame(client: Socket, mode: GameMode): Promise<Game> {
-    const game = await this.gameService.create(client.id, mode);
-    client.join(game.id);
-    return game;
+  async handleDestroyGame(client: Socket, gameId: string): Promise<void> {
+    const { error } = await this.gameService.destroy(gameId);
+
+    if (error) {
+      client.emit('error', error);
+      return;
+    }
+
+    this.server.to(gameId).emit('destroyGame');
   }
 
   @SubscribeMessage('buttonDown')
-  async handleButtonDown(client: Socket, data: any): Promise<void> {
-    const { gameId, button } = data;
-    console.log('✅   handleButtonDown   button', button);
+  async handleButtonDown(client: Socket, button: string): Promise<void> {
+    const gameId = await this.gameService.getGameIdByPlayerId(client.id);
     this.server.to(gameId).emit('buttonDown', button);
   }
 
   @SubscribeMessage('buttonUp')
-  async handleButtonUp(client: Socket, data: any): Promise<void> {
-    const { gameId, button } = data;
-    console.log('✅   handleButtonUp   button', button);
+  async handleButtonUp(client: Socket, button: string): Promise<void> {
+    const gameId = await this.gameService.getGameIdByPlayerId(client.id);
     this.server.to(gameId).emit('buttonUp', button);
-  }
-
-  public async afterInit(): Promise<void> {
-    this.logger.debug(`Current Game List : ${await this.gameService.getAll()}`);
   }
 
   public handleConnection(client: Socket): void {
@@ -75,5 +92,6 @@ export class GameGateway
 
   public handleDisconnect(client: Socket): void {
     this.logger.log(`Client disconnected: ${client.id}`);
+    this.gameService.disconnected(client.id);
   }
 }
