@@ -9,9 +9,14 @@ import { Logger } from '@nestjs/common';
 import { Socket, Server } from 'socket.io';
 
 import { GameService } from './game.service';
-import { Game, GameMode } from '../types/game.type';
+import { GameMode } from '../types/game.type';
 
-@WebSocketGateway()
+@WebSocketGateway({
+  cors: {
+    origin: 'https://pengsoo.run',
+    optionsSuccessStatus: 200,
+  },
+})
 export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger: Logger = new Logger('GameGateway');
 

@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { exception } from 'console';
 
 import { RedisCacheService } from '../redisCache/redisCache.service';
 import {
