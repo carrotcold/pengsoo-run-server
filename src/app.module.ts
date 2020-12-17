@@ -1,7 +1,16 @@
 import { Module } from '@nestjs/common';
-import { GameModule } from './game-events/game.module';
+import { ConfigModule } from '@nestjs/config';
+
+import { RedisCacheModule } from './redisCache/redisCache.module';
+import { GameModule } from './game/game.module';
 
 @Module({
-  imports: [GameModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    RedisCacheModule,
+    GameModule,
+  ],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
