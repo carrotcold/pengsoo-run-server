@@ -1,8 +1,8 @@
 import {
-  SubscribeMessage,
   WebSocketGateway,
-  OnGatewayInit,
   WebSocketServer,
+  SubscribeMessage,
+  OnGatewayInit,
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
@@ -22,25 +22,47 @@ export class GameGateway
 
   constructor(private readonly gameService: GameService) {}
 
-  @SubscribeMessage('create-game')
-  async handleCreateGame(client: Socket, mode: GameMode): Promise<Game> {
+  @SubscribeMessage('createGame')
+  async handleCreateGame(client: Socket, mode: GameMode): Promise<void> {
+    const game = await this.gameService.create(client.id, mode);
+    client.join(game.id);
+    client.emit('createGame', game);
+  }
+
+  @SubscribeMessage('joinGame')
+  async handleJoinGame(client: Socket, gameId: string): Promise<void> {
+    const playerList = await this.gameService.join(client.id, gameId);
+
+    if (!playerList) {
+      client.emit('joinGame', 'Game is Full');
+      return;
+    }
+
+    const newPlayer = playerList.find(player => player.id === client.id);
+
+    client.emit('joinGame', newPlayer);
+    this.server.to(gameId).emit('updatePlayerList', playerList);
+  }
+
+  @SubscribeMessage('destroyGame')
+  async handleDestroyGame(client: Socket, mode: GameMode): Promise<Game> {
     const game = await this.gameService.create(client.id, mode);
     client.join(game.id);
     return game;
   }
 
-  @SubscribeMessage('join-game')
-  async handleJoinGame(client: Socket, gameId: string): Promise<Game> {
-    const game = await this.gameService.join(client.id, gameId);
-    client.join(game.id);
-    return game;
+  @SubscribeMessage('buttonDown')
+  async handleButtonDown(client: Socket, data: any): Promise<void> {
+    const { gameId, button } = data;
+    console.log('✅   handleButtonDown   button', button);
+    this.server.to(gameId).emit('buttonDown', button);
   }
 
-  @SubscribeMessage('destroy-game')
-  async handleDesroyGame(client: Socket, mode: GameMode): Promise<Game> {
-    const game = await this.gameService.create(client.id, mode);
-    client.join(game.id);
-    return game;
+  @SubscribeMessage('buttonUp')
+  async handleButtonUp(client: Socket, data: any): Promise<void> {
+    const { gameId, button } = data;
+    console.log('✅   handleButtonUp   button', button);
+    this.server.to(gameId).emit('buttonUp', button);
   }
 
   public async afterInit(): Promise<void> {
