@@ -12,11 +12,10 @@ async function bootstrap() {
     process.env.NODE_ENV === 'development' ? develop : prod,
   );
 
-  console.log('✅process.env.NODE_ENV', process.env.NODE_ENV);
   app.use(helmet());
   app.useWebSocketAdapter(new RedisIoAdapter(app));
 
-  const port = process.env.SERVER_PORT || 8080;
+  const port = process.env.SERVER_PORT || 3000;
 
   await app.listen(port, () => console.log(`listening on ${port}`));
 }

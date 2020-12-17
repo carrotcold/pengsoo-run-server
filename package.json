@@ -1,9 +1,13 @@
 {
   "name": "pengsoo-run-server",
   "version": "1.0.0",
+  "description": "Infinite Running Action Web Game",
   "repository": "https://github.com/pengsoo-run/pengsoo-run-server.git",
   "author": "Soin Na <carrotcold@gmail.com>",
   "private": true,
+  "engines": {
+    "node": "12.18.4"
+  },
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build",
