@@ -9,7 +9,7 @@ import { Logger } from '@nestjs/common';
 import { Socket, Server } from 'socket.io';
 
 import { GameService } from './game.service';
-import { GameMode } from '../types/game.type';
+import { GameMode, GameProgress } from '../types/game.type';
 
 @WebSocketGateway()
 export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -31,6 +31,18 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     client.join(payload.id);
     client.emit('createGame', payload);
+  }
+
+  @SubscribeMessage('startGame')
+  async handleStartGame(client: Socket, gameId: string): Promise<void> {
+    const { error, payload } = await this.gameService.start(gameId);
+
+    if (error) {
+      client.emit('message', error);
+      return;
+    }
+    console.log('✅   handleStartGame   payload', payload);
+    this.server.to(gameId).emit('updateGameProgress', payload);
   }
 
   @SubscribeMessage('joinGame')
@@ -84,6 +96,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleButtonUp(client: Socket, button: string): Promise<void> {
     const gameId = await this.gameService.getGameIdByPlayerId(client.id);
     this.server.to(gameId).emit('buttonUp', button);
+  }
+
+  @SubscribeMessage('gameOver')
+  async handleGameOver(client: Socket): Promise<void> {
+    client.emit('updateGameProgress', GameProgress.GAMEOVER);
   }
 
   public handleConnection(client: Socket): void {

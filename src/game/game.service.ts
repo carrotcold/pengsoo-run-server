@@ -54,6 +54,21 @@ export class GameService {
     }
   }
 
+  public async start(gameId: string): Promise<ServiceResponse> {
+    try {
+      const game = (await this.redisCacheService.get(gameId)) as Game;
+
+      if (!game) return this.response('Game does not exist', null);
+
+      game.progress = GameProgress.PLAYING;
+
+      await this.redisCacheService.set(gameId, game);
+      return this.response(null, game.progress);
+    } catch (error) {
+      return this.response(error, null);
+    }
+  }
+
   public async join(
     playerId: string,
     gameId: string,
