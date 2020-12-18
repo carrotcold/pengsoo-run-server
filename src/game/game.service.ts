@@ -18,7 +18,7 @@ interface ServiceResponse {
 export class GameService {
   constructor(private readonly redisCacheService: RedisCacheService) {}
 
-  async create(id: string, mode: GameMode): Promise<ServiceResponse> {
+  public async create(id: string, mode: GameMode): Promise<ServiceResponse> {
     const roleList = this.assignRole(mode);
     const emptyPlayerList = roleList.map(this.createPlayer);
 
@@ -38,7 +38,7 @@ export class GameService {
     }
   }
 
-  async destroy(gameId: string): Promise<ServiceResponse> {
+  public async destroy(gameId: string): Promise<ServiceResponse> {
     try {
       const game = (await this.redisCacheService.get(gameId)) as Game;
 
@@ -54,7 +54,25 @@ export class GameService {
     }
   }
 
-  async join(playerId: string, gameId: string): Promise<ServiceResponse> {
+  public async start(gameId: string): Promise<ServiceResponse> {
+    try {
+      const game = (await this.redisCacheService.get(gameId)) as Game;
+
+      if (!game) return this.response('Game does not exist', null);
+
+      game.progress = GameProgress.PLAYING;
+
+      await this.redisCacheService.set(gameId, game);
+      return this.response(null, game.progress);
+    } catch (error) {
+      return this.response(error, null);
+    }
+  }
+
+  public async join(
+    playerId: string,
+    gameId: string,
+  ): Promise<ServiceResponse> {
     try {
       const game = (await this.redisCacheService.get(gameId)) as Game;
 
@@ -66,14 +84,17 @@ export class GameService {
 
       vacancy.id = playerId;
       await this.redisCacheService.set(gameId, game);
-      await this.redisCacheService.set(playerId, gameId);
+      await this.registerPlayer(playerId, gameId);
       return this.response(null, game.playerList);
     } catch (error) {
       return this.response(error, null);
     }
   }
 
-  async leave(playerId: string, gameId: string): Promise<ServiceResponse> {
+  public async leave(
+    playerId: string,
+    gameId: string,
+  ): Promise<ServiceResponse> {
     try {
       const game = (await this.redisCacheService.get(gameId)) as Game;
 
@@ -85,24 +106,37 @@ export class GameService {
 
       leavedPlayer.id = null;
       await this.redisCacheService.set(gameId, game);
-      await this.redisCacheService.delete(playerId);
+      await this.deletePlayer(playerId);
       return this.response(null, game.playerList);
     } catch (error) {
       return this.response(error, null);
     }
   }
 
-  async getGameIdByPlayerId(playerId: string): Promise<string> {
-    return await this.redisCacheService.get(playerId);
-  }
+  public async disconnected(id: string): Promise<ServiceResponse> {
+    try {
+      const game = (await this.redisCacheService.get(id)) as Game;
 
-  async disconnected(playerId: string): Promise<ServiceResponse> {
-    const gameId = await this.getGameIdByPlayerId(playerId);
+      if (game) {
+        await this.redisCacheService.delete(id);
+        for (const player of game.playerList) {
+          if (player.id) {
+            await this.deletePlayer(player.id);
+          }
+        }
+        return this.response('Game is destroyed', game.id);
+      }
 
-    if (!gameId) return;
+      const players = await this.redisCacheService.get('players');
 
-    console.log('✅   disconnected   playerId, gameId', playerId, gameId);
-    return await this.leave(playerId, gameId);
+      if (!players[id]) return this.response(null, null);
+
+      await this.deletePlayer(id);
+
+      return this.response(null, players[id]);
+    } catch (error) {
+      return this.response(error, null);
+    }
   }
 
   private assignRole(mode: GameMode): PlayerRole[] {
@@ -116,11 +150,40 @@ export class GameService {
     }
   }
 
+  private response(error: null | string, payload: any): ServiceResponse {
+    return { error, payload };
+  }
+
   private createPlayer(role: PlayerRole): Player {
     return { id: null, role };
   }
 
-  private response(error: null | string, payload: any): ServiceResponse {
-    return { error, payload };
+  public async getGameIdByPlayerId(playerId: string): Promise<string> {
+    const players = await this.redisCacheService.get('players');
+    return players[playerId];
+  }
+
+  private async registerPlayer(playerId: string, gameId: string): Promise<any> {
+    const players = await this.redisCacheService.get('players');
+
+    if (!players) {
+      const newPlayers = { [playerId]: gameId };
+      await this.redisCacheService.set('players', newPlayers);
+      return newPlayers;
+    }
+
+    players[playerId] = gameId;
+    await this.redisCacheService.set('players', players);
+    return players;
+  }
+
+  private async deletePlayer(playerId: string): Promise<boolean> {
+    const players = await this.redisCacheService.get('players');
+
+    if (!players) return false;
+
+    delete players[playerId];
+    await this.redisCacheService.set('players', players);
+    return true;
   }
 }

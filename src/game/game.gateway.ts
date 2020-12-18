@@ -9,14 +9,9 @@ import { Logger } from '@nestjs/common';
 import { Socket, Server } from 'socket.io';
 
 import { GameService } from './game.service';
-import { GameMode } from '../types/game.type';
+import { GameMode, GameProgress } from '../types/game.type';
 
-@WebSocketGateway({
-  cors: {
-    origin: 'https://pengsoo.run',
-    optionsSuccessStatus: 200,
-  },
-})
+@WebSocketGateway()
 export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger: Logger = new Logger('GameGateway');
 
@@ -30,7 +25,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { error, payload } = await this.gameService.create(client.id, mode);
 
     if (error) {
-      client.emit('error', error);
+      client.emit('message', error);
       return;
     }
 
@@ -38,12 +33,24 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.emit('createGame', payload);
   }
 
+  @SubscribeMessage('startGame')
+  async handleStartGame(client: Socket, gameId: string): Promise<void> {
+    const { error, payload } = await this.gameService.start(gameId);
+
+    if (error) {
+      client.emit('message', error);
+      return;
+    }
+    console.log('✅   handleStartGame   payload', payload);
+    this.server.to(gameId).emit('updateGameProgress', payload);
+  }
+
   @SubscribeMessage('joinGame')
   async handleJoinGame(client: Socket, gameId: string): Promise<void> {
     const { error, payload } = await this.gameService.join(client.id, gameId);
 
     if (error) {
-      client.emit('error', error);
+      client.emit('message', error);
       return;
     }
 
@@ -58,7 +65,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { error, payload } = await this.gameService.leave(client.id, gameId);
 
     if (error) {
-      client.emit('error', error);
+      client.emit('message', error);
       return;
     }
 
@@ -72,7 +79,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { error } = await this.gameService.destroy(gameId);
 
     if (error) {
-      client.emit('error', error);
+      client.emit('message', error);
       return;
     }
 
@@ -91,12 +98,26 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(gameId).emit('buttonUp', button);
   }
 
-  public handleConnection(client: Socket): void {
-    this.logger.log(`Client connected: ${client.id}`);
+  @SubscribeMessage('gameOver')
+  async handleGameOver(client: Socket): Promise<void> {
+    client.emit('updateGameProgress', GameProgress.GAMEOVER);
   }
 
-  public handleDisconnect(client: Socket): void {
+  public handleConnection(client: Socket): void {
+    this.logger.log(`Client connected: ${client.id}`);
+
+    console.log(this.server);
+  }
+
+  public async handleDisconnect(client: Socket): Promise<void> {
     this.logger.log(`Client disconnected: ${client.id}`);
-    this.gameService.disconnected(client.id);
+    const { error, payload } = await this.gameService.disconnected(client.id);
+
+    if (error) {
+      this.server.to(payload).emit('message', error);
+      return;
+    }
+
+    await this.handleLeaveGame(client, payload);
   }
 }
