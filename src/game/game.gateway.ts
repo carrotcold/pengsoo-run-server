@@ -11,12 +11,7 @@ import { Socket, Server } from 'socket.io';
 import { GameService } from './game.service';
 import { GameMode } from '../types/game.type';
 
-@WebSocketGateway({
-  cors: {
-    origin: 'https://pengsoo.run',
-    optionsSuccessStatus: 200,
-  },
-})
+@WebSocketGateway()
 export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger: Logger = new Logger('GameGateway');
 
@@ -93,6 +88,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   public handleConnection(client: Socket): void {
     this.logger.log(`Client connected: ${client.id}`);
+
+    console.log(this.server);
   }
 
   public handleDisconnect(client: Socket): void {
