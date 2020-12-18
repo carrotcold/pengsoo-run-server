@@ -25,7 +25,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { error, payload } = await this.gameService.create(client.id, mode);
 
     if (error) {
-      client.emit('error', error);
+      client.emit('message', error);
       return;
     }
 
@@ -38,7 +38,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { error, payload } = await this.gameService.join(client.id, gameId);
 
     if (error) {
-      client.emit('error', error);
+      client.emit('message', error);
       return;
     }
 
@@ -53,7 +53,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { error, payload } = await this.gameService.leave(client.id, gameId);
 
     if (error) {
-      client.emit('error', error);
+      client.emit('message', error);
       return;
     }
 
@@ -67,7 +67,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { error } = await this.gameService.destroy(gameId);
 
     if (error) {
-      client.emit('error', error);
+      client.emit('message', error);
       return;
     }
 
@@ -92,8 +92,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(this.server);
   }
 
-  public handleDisconnect(client: Socket): void {
+  public async handleDisconnect(client: Socket): Promise<void> {
     this.logger.log(`Client disconnected: ${client.id}`);
-    this.gameService.disconnected(client.id);
+    const { error, payload } = await this.gameService.disconnected(client.id);
+
+    if (error) {
+      this.server.to(payload).emit('message', error);
+      return;
+    }
+
+    await this.handleLeaveGame(client, payload);
   }
 }
