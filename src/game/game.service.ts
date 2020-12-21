@@ -1,13 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
+import { Game, GameMode, GameProgress, Player, PlayerRole } from './game.type';
+import { MESSAGE } from './game.constant';
 import { RedisCacheService } from '../redisCache/redisCache.service';
-import {
-  Game,
-  GameMode,
-  GameProgress,
-  Player,
-  PlayerRole,
-} from '../types/game.type';
 
 interface ServiceResponse {
   error: null | string;
@@ -58,7 +53,7 @@ export class GameService {
     try {
       const game = (await this.redisCacheService.get(gameId)) as Game;
 
-      if (!game) return this.response('Game does not exist', null);
+      if (!game) return this.response(MESSAGE.NOT_EXIST, null);
 
       game.progress = GameProgress.PLAYING;
 
@@ -69,18 +64,15 @@ export class GameService {
     }
   }
 
-  public async join(
-    playerId: string,
-    gameId: string,
-  ): Promise<ServiceResponse> {
+  public async join(playerId: string, gameId: string): Promise<ServiceResponse> {
     try {
       const game = (await this.redisCacheService.get(gameId)) as Game;
 
-      if (!game) return this.response('Game does not exist', null);
+      if (!game) return this.response(MESSAGE.NOT_EXIST, null);
 
       const vacancy = game.playerList.find(player => !player.id);
 
-      if (!vacancy) return this.response('Game is full', null);
+      if (!vacancy) return this.response(MESSAGE.FULL, null);
 
       vacancy.id = playerId;
       await this.redisCacheService.set(gameId, game);
@@ -91,18 +83,13 @@ export class GameService {
     }
   }
 
-  public async leave(
-    playerId: string,
-    gameId: string,
-  ): Promise<ServiceResponse> {
+  public async leave(playerId: string, gameId: string): Promise<ServiceResponse> {
     try {
       const game = (await this.redisCacheService.get(gameId)) as Game;
 
-      if (!game) return this.response('Game does not exist', null);
+      if (!game) return this.response(MESSAGE.NOT_EXIST, null);
 
-      const leavedPlayer = game.playerList.find(
-        player => player.id === playerId,
-      );
+      const leavedPlayer = game.playerList.find(player => player.id === playerId);
 
       leavedPlayer.id = null;
       await this.redisCacheService.set(gameId, game);
@@ -124,7 +111,7 @@ export class GameService {
             await this.deletePlayer(player.id);
           }
         }
-        return this.response('Game is destroyed', game.id);
+        return this.response(MESSAGE.DESTROYED, game.id);
       }
 
       const players = await this.redisCacheService.get('players');

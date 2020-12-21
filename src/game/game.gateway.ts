@@ -9,7 +9,8 @@ import { Logger } from '@nestjs/common';
 import { Socket, Server } from 'socket.io';
 
 import { GameService } from './game.service';
-import { GameMode, GameProgress } from '../types/game.type';
+import { GameMode, GameProgress } from './game.type';
+import { EVENT } from './game.constant';
 
 @WebSocketGateway()
 export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -20,87 +21,87 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(private readonly gameService: GameService) {}
 
-  @SubscribeMessage('createGame')
+  @SubscribeMessage(EVENT.CREATE_GAME)
   async handleCreateGame(client: Socket, mode: GameMode): Promise<void> {
     const { error, payload } = await this.gameService.create(client.id, mode);
 
     if (error) {
-      client.emit('message', error);
+      client.emit(EVENT.MESSAGE, error);
       return;
     }
 
     client.join(payload.id);
-    client.emit('createGame', payload);
+    client.emit(EVENT.CREATE_GAME, payload);
   }
 
-  @SubscribeMessage('startGame')
+  @SubscribeMessage(EVENT.START_GAME)
   async handleStartGame(client: Socket, gameId: string): Promise<void> {
     const { error, payload } = await this.gameService.start(gameId);
 
     if (error) {
-      client.emit('message', error);
+      client.emit(EVENT.MESSAGE, error);
       return;
     }
-    console.log('✅   handleStartGame   payload', payload);
-    this.server.to(gameId).emit('updateGameProgress', payload);
+
+    this.server.to(gameId).emit(EVENT.UPDATE_GAME_PROGRESS, payload);
   }
 
-  @SubscribeMessage('joinGame')
+  @SubscribeMessage(EVENT.JOIN_GAME)
   async handleJoinGame(client: Socket, gameId: string): Promise<void> {
     const { error, payload } = await this.gameService.join(client.id, gameId);
 
     if (error) {
-      client.emit('message', error);
+      client.emit(EVENT.MESSAGE, error);
       return;
     }
 
     const newPlayer = payload.find(player => player.id === client.id);
 
-    client.emit('joinGame', newPlayer);
-    this.server.to(gameId).emit('updatePlayerList', payload);
+    this.server.to(gameId).emit(EVENT.UPDATE_PLAYERLIST, payload);
+    client.emit(EVENT.JOIN_GAME, newPlayer);
   }
 
-  @SubscribeMessage('leaveGame')
+  @SubscribeMessage(EVENT.LEAVE_GAME)
   async handleLeaveGame(client: Socket, gameId: string): Promise<void> {
     const { error, payload } = await this.gameService.leave(client.id, gameId);
 
     if (error) {
-      client.emit('message', error);
+      client.emit(EVENT.MESSAGE, error);
       return;
     }
 
     client.leave(gameId);
-    client.emit('leaveGame');
-    this.server.to(gameId).emit('updatePlayerList', payload);
+    client.emit(EVENT.LEAVE_GAME);
+    this.server.to(gameId).emit(EVENT.UPDATE_PLAYERLIST, payload);
   }
 
-  @SubscribeMessage('destroyGame')
+  @SubscribeMessage(EVENT.DESTROY_GAME)
   async handleDestroyGame(client: Socket, gameId: string): Promise<void> {
     const { error } = await this.gameService.destroy(gameId);
 
     if (error) {
-      client.emit('message', error);
+      client.emit(EVENT.MESSAGE, error);
       return;
     }
 
-    this.server.to(gameId).emit('destroyGame');
+    this.server.to(gameId).emit(EVENT.DESTROY_GAME);
   }
 
-  @SubscribeMessage('buttonDown')
+  @SubscribeMessage(EVENT.BUTTON_DOWN)
   async handleButtonDown(client: Socket, button: string): Promise<void> {
     const gameId = await this.gameService.getGameIdByPlayerId(client.id);
-    this.server.to(gameId).emit('buttonDown', button);
+    this.server.to(gameId).emit(EVENT.BUTTON_DOWN, button);
   }
 
-  @SubscribeMessage('buttonUp')
+  @SubscribeMessage(EVENT.BUTTON_UP)
   async handleButtonUp(client: Socket, button: string): Promise<void> {
     const gameId = await this.gameService.getGameIdByPlayerId(client.id);
-    this.server.to(gameId).emit('buttonUp', button);
+    this.server.to(gameId).emit(EVENT.BUTTON_UP, button);
   }
 
-  @SubscribeMessage('gameOver')
+  @SubscribeMessage(EVENT.GAMEOVER)
   async handleGameOver(client: Socket): Promise<void> {
-    client.emit('updateGameProgress', GameProgress.GAMEOVER);
+    client.emit(EVENT.UPDATE_GAME_PROGRESS, GameProgress.GAMEOVER);
   }
 
   public handleConnection(client: Socket): void {
@@ -114,7 +115,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { error, payload } = await this.gameService.disconnected(client.id);
 
     if (error) {
-      this.server.to(payload).emit('message', error);
+      this.server.to(payload).emit(EVENT.MESSAGE, error);
       return;
     }
 
