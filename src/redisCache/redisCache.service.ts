@@ -9,29 +9,47 @@ export class RedisCacheService {
     this.logger.log('RedisCacheService INIT');
   }
 
-  async get(key: string): Promise<any> {
+  async getFromGroup(group: string, key: string): Promise<any> {
+    const parsedGroup = await this.get(group);
+    return parsedGroup && parsedGroup[key];
+  }
+
+  async setToGroup(group: string, key: string, value: any): Promise<any> {
+    const parsedGroup = await this.get(group);
+
+    if (!parsedGroup) {
+      const newGroup = { [key]: value };
+      await this.set(group, newGroup);
+      return newGroup;
+    }
+
+    parsedGroup[key] = value;
+    await this.set(group, parsedGroup);
+    return parsedGroup;
+  }
+
+  async deleteFromGroup(group: string, key: string): Promise<any> {
+    const parsedGroup = await this.get(group);
+
+    if (!parsedGroup) return false;
+
+    delete parsedGroup[key];
+    await this.set(group, parsedGroup);
+    return true;
+  }
+
+  private async get(key: string): Promise<any> {
     return JSON.parse(await this.cacheManager.get(key));
   }
 
-  async getMany(keys: string[]): Promise<any[]> {
-    if (!keys.length) return [];
-
-    return JSON.parse(await this.cacheManager.mget(keys));
-  }
-
-  async keys(): Promise<string[]> {
-    return await this.cacheManager.keys();
-  }
-
-  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-  async set(key: string, value: any): Promise<string> {
+  private async set(key: string, value: any): Promise<string> {
     const convertedValue = JSON.stringify(value);
     await this.cacheManager.set(key, convertedValue);
     this.logging('[SET]', key, convertedValue);
     return convertedValue;
   }
 
-  async delete(key: string): Promise<string> {
+  private async delete(key: string): Promise<string> {
     const deletedValue = await this.cacheManager.del(key);
     this.logging('[DEL]', key, deletedValue);
     return deletedValue;

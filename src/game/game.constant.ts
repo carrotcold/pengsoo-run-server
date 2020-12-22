@@ -16,4 +16,11 @@ export const enum MESSAGE {
   NOT_EXIST = 'Game does not exist',
   FULL = 'Game is full',
   DESTROYED = 'Game is destroyed',
+  ALL_DISCONNECTED = 'All players are disconnected',
+}
+
+export const enum GROUP {
+  GAME = 'game',
+  HOST_GAME = 'host:game',
+  PLAYER_GAME = 'player:game',
 }
