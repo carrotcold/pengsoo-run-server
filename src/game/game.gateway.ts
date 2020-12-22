@@ -91,8 +91,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage(EVENT.GAMEOVER)
-  async handleGameOver(): Promise<WsResponse<GameProgress>> {
-    return { event: EVENT.UPDATE_GAME_PROGRESS, data: GameProgress.GAMEOVER };
+  async handleGameOver(client: Socket): Promise<void> {
+    const gameId = await this.gameService.getGameIdByHostId(client.id);
+    this.server.to(gameId).emit(EVENT.UPDATE_GAME_PROGRESS, GameProgress.GAMEOVER);
   }
 
   public handleConnection(client: Socket): void {
